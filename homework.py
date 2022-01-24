@@ -33,7 +33,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     filename='main.log',
     filemode='w',
-    format='%(asctime)s, %(levelname)s, %(message)s, %(name)s'
+    format='%(asctime)s - %(levelname)s - %(message)s - %(time)s'
 )
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ def send_message(bot, message):
 
 
 def get_api_answer(current_timestamp):
-    """Отправка GET запроса и проверка ответа от API"""
+    """Отправка GET запроса и проверка ответа от API."""
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
     try:
@@ -82,6 +82,7 @@ def check_response(response):
 
 
 def parse_status(homework):
+    """Проверка и извлечение ключа status из ответа."""
     homework_name = homework['homework_name']
     homework_status = homework.get('status')
     try:
