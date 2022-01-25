@@ -22,7 +22,7 @@ ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
 
-HOMEWORK_STATUSES = {
+VERDICTS = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
@@ -46,7 +46,7 @@ def send_message(bot, message):
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logger.info(f'Сообщение отправлено: {message}')
     except Exception as error:
-        logging.error(f'Ошибка при отправке сообщения: {error}')
+        logger.error(f'Ошибка при отправке сообщения: {error}')
 
 
 def get_api_answer(current_timestamp):
@@ -83,21 +83,14 @@ def check_response(response):
 
 def parse_status(homework):
     """Проверка и извлечение ключа status из ответа."""
-    homework_name = homework['homework_name']
+    homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
-    try:
-        if homework_status is None:
-            message = 'Пустое значение "status".'
-            raise HomeworkStatusError(message)
-        if homework_name is None:
-            message = 'Пустое значение "homework_name".'
-            raise HomeworkExceptionError(message)
-        verdict = HOMEWORK_STATUSES[homework_status]
-        return f'Изменился статус проверки работы "{homework_name}". {verdict}'
-    except KeyError:
-        message = 'Запрошенный ключ отсуствует в полученном словаре'
-        logger.error(message)
-        raise KeyError(message)
+    if homework_name is None:
+        raise KeyError('homework_name is None')
+    if homework_status not in VERDICTS.keys():
+        raise KeyError('Некорректный статус домашней работы')
+    verdict = VERDICTS[homework_status]
+    return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
 def check_tokens():
@@ -122,18 +115,23 @@ def main():
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
     hw_status = 'reviewing'
-    errors = True
+    errors = ''
     while True:
         try:
             response = get_api_answer(current_timestamp)
-            homework = check_response(response)
-            if homework and hw_status != homework['status']:
-                message = parse_status(homework)
-                send_message(bot, message)
-                hw_status = homework['status']
-            logger.info(
-                'Нет изменений, через 10 минут посмотрю ещё раз')
-            time.sleep(RETRY_TIME)
+            homeworks = check_response(response)
+            if homeworks:
+                last_homework = homeworks[0]
+                status = parse_status(last_homework)
+                if hw_status != status:
+                    hw_status = status
+                    send_message(bot, status)
+                else:
+                    logger.info('Нет изменений, '
+                                'через 10 минут посмотрю ещё раз')
+                    time.sleep(RETRY_TIME)
+            else:
+                raise Exception('Новых ДЗ не было сдано')
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             if errors:
