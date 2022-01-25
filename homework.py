@@ -60,10 +60,14 @@ def get_api_answer(current_timestamp):
                          f'недоступен. Код ответа API: {response.status_code}')
             raise StatusCodeError('Код ответа сервера. '
                                   f'{response.status_code}')
-        return response.json()
     except requests.exceptions.RequestException as request_error:
         logger.error(f'Код ответа API: {request_error}')
         raise RequestError(request_error)
+    try:
+        return response.json()
+    except ValueError as error:
+        logger.error(error)
+        raise ValueError('Пришёл некорректный JSON')
 
 
 def check_response(response):
@@ -119,26 +123,21 @@ def main():
     while True:
         try:
             response = get_api_answer(current_timestamp)
-            homeworks = check_response(response)
-            if homeworks:
-                last_homework = homeworks[0]
-                status = parse_status(last_homework)
-                if hw_status != status:
-                    hw_status = status
-                    send_message(bot, status)
-                else:
-                    logger.info('Нет изменений, '
-                                'через 10 минут посмотрю ещё раз')
-                    time.sleep(RETRY_TIME)
-            else:
-                raise Exception('Новых ДЗ не было сдано')
+            homework = check_response(response)
+            if homework and hw_status != homework['status']:
+                message = parse_status(homework)
+                send_message(bot, message)
+                hw_status = homework['status']
+            logger.info('Нет изменений, через 10 минут посмотрю ещё раз')
+            current_timestamp = response.get('current_date', current_timestamp)
+
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            if errors:
-                errors = False
-                send_message(bot, message)
-            logger.critical(message)
-            time.sleep(RETRY_TIME)
+            logger.error(message)
+            if errors != message:
+                errors = message
+                send_message(bot, errors)
+        time.sleep(RETRY_TIME)
 
 
 if __name__ == '__main__':
