@@ -20,9 +20,3 @@ class HomeworkExceptionError(Exception):
     """Ошибка в данных по ключу homework"""
 
     pass
-
-
-class HomeworkStatusError(Exception):
-    """Ошибки в статусе домашней работы"""
-
-    pass

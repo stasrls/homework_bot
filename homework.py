@@ -8,7 +8,7 @@ import telegram
 from dotenv import load_dotenv
 
 from exceptions import (HomeworkExceptionError, StatusCodeError,
-                        RequestError, HomeworkStatusError)
+                        RequestError)
 
 load_dotenv()
 
